@@ -115,6 +115,9 @@ for plane in ('axial', 'coronal', 'sagittal'):
     for seg_idx in segmentations.keys():
         mask = np.array([segmentations[seg_idx].get(position, np.zeros((ROWS, COLS))) for position in sorted(img.keys(), reverse=True)])
         combined_masks[mask!=0] = seg_idx
+        
+    # whole_image = np.fliplr(whole_image)
+    # combined_masks = np.fliplr(combined_masks)
 
     get_overlay_animation(
         image=whole_image, 

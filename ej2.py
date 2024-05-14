@@ -140,6 +140,7 @@ def coregister_images(ref_image, input_image):
     result = least_squares(
         function_to_minimize,
         x0=initial_parameters,
+        method="lm", 
         max_nfev=250,
         verbose=2)
     return result
@@ -157,11 +158,11 @@ for ref, inp in zip(referenced_img[40:], rotated_input_img[40:]):
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
     # Plot the first image
-    axes[0].imshow(ref)
-    axes[0].set_title('Referenced')
+    axes[0].imshow(ref, cmap="bone")
+    axes[0].set_title('Reference')
 
     # Plot the second image
-    axes[1].imshow(inp)
+    axes[1].imshow(inp, cmap="bone")
     axes[1].set_title('Input')
 
     # Hide the axes

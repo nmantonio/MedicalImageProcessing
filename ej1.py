@@ -62,8 +62,6 @@ segmentations_img = np.zeros_like(img, dtype=np.uint8)
 for seg_idx in segmentations.keys():
     segmentations_img[segmentations[seg_idx]["SegmentationSortedArray"]!= 0] = int(seg_idx)
 
-
-
 n = 256
 projections = create_projections(img, n=n, mode="img")
 seg_projections = create_projections(segmentations_img, n=n, mode="seg")
@@ -97,18 +95,4 @@ anim = animation.ArtistAnimation(fig, animation_data,
 anim.save(os.path.join(root, "results", "1", "realistic_rotation.gif"))
 # plt.show() 
 
-# # Define the number of subplots
-# num_subplots = len(fused_projections)
-
-# # Create a figure and axes
-# fig, axes = plt.subplots(1, num_subplots, figsize=(15, 5))
-
-# # Plot each fused projection
-# for i, fused_projection in enumerate(fused_projections):
-#     axes[i].imshow(fused_projection, vmin=np.amin(img), vmax=np.amax(img), aspect=pixel_len_mm[0] / pixel_len_mm[1])  # You can change the colormap if needed
-#     axes[i].set_title(f'Projection {i+1}')
-
-# # Adjust layout
-# plt.tight_layout()
-# plt.show()
 

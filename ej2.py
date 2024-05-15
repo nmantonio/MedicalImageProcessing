@@ -6,7 +6,7 @@ import matplotlib
 from matplotlib import pyplot as plt, animation
 from skimage.transform import resize
 from scipy.ndimage import rotate, shift
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, minimize
 
 from utils import create_rotation
 root = r"C:\Users\tonin\Desktop\Master\PIM\MedicalImageProcessing"
@@ -134,15 +134,23 @@ def coregister_images(ref_image, input_image):
         """ Transform input landmarks, then compare with reference landmarks."""        
         moved_image = translation_then_axialrotation(input_image, parameters=parameters)
         
-        return vector_of_residuals(ref_image, moved_image)
+        return mse_3d_array(ref_image, moved_image)
 
+    # # Apply least squares optimization
+    # result = least_squares(
+    #     function_to_minimize,
+    #     x0=initial_parameters,
+    #     method="lm", 
+    #     max_nfev=250,
+    #     verbose=2)
     # Apply least squares optimization
-    result = least_squares(
+    result = minimize(
         function_to_minimize,
         x0=initial_parameters,
-        method="lm", 
-        max_nfev=250,
-        verbose=2)
+        method="Powell", 
+        # max_nfev=250,
+        # verbose=2
+        )
     return result
 
 

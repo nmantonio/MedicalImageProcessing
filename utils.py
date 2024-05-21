@@ -12,7 +12,7 @@ def MIP_sagittal_plane(img: np.ndarray) -> np.ndarray:
 
 def rotate_on_axial_plane(img_dcm: np.ndarray, angle_in_degrees: float) -> np.ndarray:
     """ Rotate the image on the axial plane. """    
-    return rotate(img_dcm, angle=angle_in_degrees, axes=[1, 2], reshape=False, mode="nearest", order=0)
+    return rotate(img_dcm, angle=angle_in_degrees, axes=[1, 2], reshape=False, mode="constant", order=3)
 
 # def get_projection(img: np.ndarray) -> np.ndarray:
 #     projection = np.zeros((img.shape[0], img.shape[2]), dtype=np.uint8)

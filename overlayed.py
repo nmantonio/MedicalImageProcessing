@@ -59,72 +59,72 @@ def get_overlay_animation(image, mask, plane, show=False, save_path=False, alpha
         plt.show()        
     
 
-root = r"C:\Users\tonin\Desktop\Master\PIM\MedicalImageProcessing"
-med_folder = os.path.join(root, "HCC-TACE-Seg/HCC_009/02-15-1998-NA-PP CAPLIVER PROTO.-10975/103.000000-LIVER 3 PHASE CAP-83135")
-# med_folder = os.path.join(root, r"HCC-TACE-Seg\HCC_009\02-15-1998-NA-PP CAPLIVER PROTO.-10975\103.000000-LIVER 3 PHASE CAP-83135")
-segmentation_path = os.path.join(root, "HCC-TACE-Seg/HCC_009/02-15-1998-NA-PP CAPLIVER PROTO.-10975/300.000000-Segmentation-91221/1-1.dcm")
+# root = r"C:\Users\tonin\Desktop\Master\PIM\MedicalImageProcessing"
+# med_folder = os.path.join(root, "HCC-TACE-Seg/HCC_009/02-15-1998-NA-PP CAPLIVER PROTO.-10975/103.000000-LIVER 3 PHASE CAP-83135")
+# # med_folder = os.path.join(root, r"HCC-TACE-Seg\HCC_009\02-15-1998-NA-PP CAPLIVER PROTO.-10975\103.000000-LIVER 3 PHASE CAP-83135")
+# segmentation_path = os.path.join(root, "HCC-TACE-Seg/HCC_009/02-15-1998-NA-PP CAPLIVER PROTO.-10975/300.000000-Segmentation-91221/1-1.dcm")
 
-# ------------------------ CT Scan ------------------------
-img = {}
-for idx, slice_path in enumerate(os.listdir(med_folder)):
-    dcm_img = pydicom.dcmread(os.path.join(med_folder, slice_path))
+# # ------------------------ CT Scan ------------------------
+# img = {}
+# for idx, slice_path in enumerate(os.listdir(med_folder)):
+#     dcm_img = pydicom.dcmread(os.path.join(med_folder, slice_path))
 
-    img[float(dcm_img["ImagePositionPatient"].value[2])] = dcm_img.pixel_array
+#     img[float(dcm_img["ImagePositionPatient"].value[2])] = dcm_img.pixel_array
     
-whole_image = np.array([img[position] for position in sorted(img.keys(), reverse=True)])
+# whole_image = np.array([img[position] for position in sorted(img.keys(), reverse=True)])
 
-# ------------------------ Segmentation ------------------------
+# # ------------------------ Segmentation ------------------------
 
-seg_dcm = pydicom.dcmread(segmentation_path) 
-ROWS, COLS = seg_dcm["Rows"].value, seg_dcm["Columns"].value
+# seg_dcm = pydicom.dcmread(segmentation_path) 
+# ROWS, COLS = seg_dcm["Rows"].value, seg_dcm["Columns"].value
 
-segmentations = {}
-segmentations_labels = {}
-for segseq in seg_dcm["SegmentSequence"].value:
-    seg_idx = segseq["SegmentNumber"].value
-    segmentations[seg_idx] = {}
-    segmentations_labels[seg_idx] = segseq["SegmentLabel"].value
+# segmentations = {}
+# segmentations_labels = {}
+# for segseq in seg_dcm["SegmentSequence"].value:
+#     seg_idx = segseq["SegmentNumber"].value
+#     segmentations[seg_idx] = {}
+#     segmentations_labels[seg_idx] = segseq["SegmentLabel"].value
     
-seg_array = seg_dcm.pixel_array
-for slice_idx, element in enumerate(seg_dcm["PerFrameFunctionalGroupsSequence"]):
-    seg_idx = element["SegmentIdentificationSequence"][0]["ReferencedSegmentNumber"].value
-    segmentations[seg_idx][float(element["PlanePositionSequence"][0]["ImagePositionPatient"].value[2])] = seg_array[slice_idx]
+# seg_array = seg_dcm.pixel_array
+# for slice_idx, element in enumerate(seg_dcm["PerFrameFunctionalGroupsSequence"]):
+#     seg_idx = element["SegmentIdentificationSequence"][0]["ReferencedSegmentNumber"].value
+#     segmentations[seg_idx][float(element["PlanePositionSequence"][0]["ImagePositionPatient"].value[2])] = seg_array[slice_idx]
 
-# ------------------------ Overlay and save ------------------------
-# print(seg_dcm["SharedFunctionalGroupsSequence"][0]["PixelMeasuresSequence"][0]["PixelSpacing"].value[0])
-pixel_len_mm = [float(seg_dcm["SharedFunctionalGroupsSequence"][0]["PixelMeasuresSequence"][0]["SliceThickness"].value), float(seg_dcm["SharedFunctionalGroupsSequence"][0]["PixelMeasuresSequence"][0]["PixelSpacing"].value[0]), float(seg_dcm["SharedFunctionalGroupsSequence"][0]["PixelMeasuresSequence"][0]["PixelSpacing"].value[1])] # Slice thikness
-for plane in ('axial', 'coronal', 'sagittal'):
-    if plane == 'axial':
-        aspect_ratio = 1
-    else:
-        aspect_ratio = pixel_len_mm[0]/pixel_len_mm[1]
+# # ------------------------ Overlay and save ------------------------
+# # print(seg_dcm["SharedFunctionalGroupsSequence"][0]["PixelMeasuresSequence"][0]["PixelSpacing"].value[0])
+# pixel_len_mm = [float(seg_dcm["SharedFunctionalGroupsSequence"][0]["PixelMeasuresSequence"][0]["SliceThickness"].value), float(seg_dcm["SharedFunctionalGroupsSequence"][0]["PixelMeasuresSequence"][0]["PixelSpacing"].value[0]), float(seg_dcm["SharedFunctionalGroupsSequence"][0]["PixelMeasuresSequence"][0]["PixelSpacing"].value[1])] # Slice thikness
+# for plane in ('axial', 'coronal', 'sagittal'):
+#     if plane == 'axial':
+#         aspect_ratio = 1
+#     else:
+#         aspect_ratio = pixel_len_mm[0]/pixel_len_mm[1]
 
-    # for seg_idx in segmentations.keys():
-    #     mask = np.array([segmentations[seg_idx].get(position, np.zeros((ROWS, COLS))) for position in sorted(img.keys(), reverse=True)])
+#     # for seg_idx in segmentations.keys():
+#     #     mask = np.array([segmentations[seg_idx].get(position, np.zeros((ROWS, COLS))) for position in sorted(img.keys(), reverse=True)])
 
-    #     get_overlay_animation(
-    #         image=whole_image,
-    #         mask=mask,
-    #         plane=plane,
-    #         show=False,
-    #         save_path=f"results/1/{plane}_{seg_idx}.gif", 
-    #         aspect_ratio=aspect_ratio
-    #     )
+#     #     get_overlay_animation(
+#     #         image=whole_image,
+#     #         mask=mask,
+#     #         plane=plane,
+#     #         show=False,
+#     #         save_path=f"results/1/{plane}_{seg_idx}.gif", 
+#     #         aspect_ratio=aspect_ratio
+#     #     )
 
-    combined_masks = np.zeros_like(whole_image)
-    for seg_idx in segmentations.keys():
-        mask = np.array([segmentations[seg_idx].get(position, np.zeros((ROWS, COLS))) for position in sorted(img.keys(), reverse=True)])
-        combined_masks[mask!=0] = seg_idx
+#     combined_masks = np.zeros_like(whole_image)
+#     for seg_idx in segmentations.keys():
+#         mask = np.array([segmentations[seg_idx].get(position, np.zeros((ROWS, COLS))) for position in sorted(img.keys(), reverse=True)])
+#         combined_masks[mask!=0] = seg_idx
         
-    # whole_image = np.fliplr(whole_image)
-    # combined_masks = np.fliplr(combined_masks)
+#     # whole_image = np.fliplr(whole_image)
+#     # combined_masks = np.fliplr(combined_masks)
 
-    get_overlay_animation(
-        image=whole_image, 
-        mask=combined_masks,
-        plane=plane,
-        show=False,
-        save_path=f"results/1/{plane}_combined.gif",
-        legend_labels=[segmentations_labels[seg_idx] for seg_idx in segmentations.keys()], 
-        aspect_ratio=aspect_ratio
-    )
+#     get_overlay_animation(
+#         image=whole_image, 
+#         mask=combined_masks,
+#         plane=plane,
+#         show=False,
+#         save_path=f"results/1/{plane}_combined.gif",
+#         legend_labels=[segmentations_labels[seg_idx] for seg_idx in segmentations.keys()], 
+#         aspect_ratio=aspect_ratio
+#     )

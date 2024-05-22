@@ -8,9 +8,10 @@ from skimage.transform import resize
 from scipy.ndimage import rotate, shift
 from scipy.optimize import least_squares, minimize
 
-from utils import create_rotation
+from utils import create_rotation, alpha_fusion
 root = r"C:\Users\tonin\Desktop\Master\PIM\MedicalImageProcessing"
 os.makedirs(os.path.join(root, "results", "2"), exist_ok=True)
+N = 2
 
 
 def expand_images(img1, img2):
@@ -54,6 +55,7 @@ def resize_as(img, reference):
     return resize(img, reference.shape)
 
 def apply_threshold(img, th):
+    img[img < th] = 0 
     return img
 
 atlas_path = os.path.join(root, "AAL3_1mm.dcm")
@@ -63,6 +65,7 @@ referenced_path = os.path.join(root, "icbm_avg_152_t1_tal_nlin_symmetric_VI.dcm"
 # Referenced atlas image
 referenced_dcm = pydicom.dcmread(referenced_path)
 referenced_img = referenced_dcm.pixel_array
+referenced_shape = referenced_img.shape
 referenced_img = normalize_img(referenced_img)
 referenced_img = np.flip(referenced_img, axis=0)
 
@@ -76,21 +79,21 @@ for idx, slice_path in enumerate(os.listdir(input_path)):
 
 sorted_list = sorted(unsorted_input_info, key=lambda x: x["pos"], reverse=False)
 input_img = np.array([el["img"] for el in sorted_list])
-# create_rotation(normalize_img(np.flip(input_img, axis=0)), n=128, name="pre_input", root=root, aspect_ratio=aspect_ratio)
+create_rotation(normalize_img(np.flip(input_img, axis=0)), n=N, name="pre_input", root=root, aspect_ratio=aspect_ratio, show=False)
 input_img = input_img[80:(input_img.shape[0]), 0:(input_img.shape[1] - 40), 70:(input_img.shape[2] - 40)]
 input_img = np.flip(input_img, axis=0)
 input_img = normalize_img(input_img)
 # input_img = np.concatenate((np.zeros((referenced_img.shape[0] - input_img.shape[0], input_img.shape[1], input_img.shape[2])), input_img), axis=0)
 
-referenced_img = resize_img(referenced_img)
-input_img = resize_as(input_img, reference=referenced_img)
+# referenced_img = resize_img(referenced_img)
+# input_img = resize_as(input_img, reference=referenced_img)
 
 for img, name in zip((input_img, referenced_img), ("post_input", "reference", "substraction")):
     if name =="reference":
         anim_aspect_ratio=1
     else: 
         anim_aspect_ratio=aspect_ratio
-    create_rotation(img, n=128, name=name, root=root, aspect_ratio=1, show=False)
+    create_rotation(img, n=N, name=name, root=root, aspect_ratio=1, show=False)
 
 def mse_3d_array(arr1, arr2):
     diff = arr1 - arr2
@@ -127,7 +130,7 @@ def coregister_images(ref_image, input_image):
     """ Coregister two sets of landmarks using a rigid transformation. """
     initial_parameters = (
         0, 0, 0, # t1, t2, t3 (translation)
-        175, 20, 0 # angle_0, angle_1, angle_2 (rotations)
+        160, 0, 0 # angle_0, angle_1, angle_2 (rotations)
     )
 
     def function_to_minimize(parameters):
@@ -154,39 +157,74 @@ def coregister_images(ref_image, input_image):
     return result
 
 
-results = coregister_images(referenced_img, input_img)
-print(results)
-print(results.x)
-print(dir(results))
+# results = coregister_images(referenced_img, input_img)
+# print(results)
+# print(results.x)
+# print(dir(results))
 
-rotated_input_img = translation_then_axialrotation(input_img, parameters=results.x)
+# rotated_input_img = translation_then_axialrotation(input_img, parameters=results.x)
 
-for ref, inp in zip(referenced_img[40:], rotated_input_img[40:]):
-    # Create a figure with two subplots
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+# for ref, inp in zip(referenced_img[40:], rotated_input_img[40:]):
+#     # Create a figure with two subplots
+#     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
-    # Plot the first image
-    axes[0].imshow(ref, cmap="bone")
-    axes[0].set_title('Reference')
+#     # Plot the first image
+#     axes[0].imshow(ref, cmap="bone")
+#     axes[0].set_title('Reference')
 
-    # Plot the second image
-    axes[1].imshow(inp, cmap="bone")
-    axes[1].set_title('Input')
+#     # Plot the second image
+#     axes[1].imshow(inp, cmap="bone")
+#     axes[1].set_title('Input')
 
-    # Hide the axes
-    for ax in axes:
-        ax.axis('off')
+#     # Hide the axes
+#     for ax in axes:
+#         ax.axis('off')
 
-    # Show the plot
-    plt.show()
+#     # Show the plot
+#     plt.show()
     
 
 
 # Extract
 # Read atlas
-# atlas_dcm = pydicom.dcmread(atlas_path)
-# print(atlas_dcm)
+atlas_dcm = pydicom.dcmread(atlas_path)
+print(atlas_dcm)
 
-# atlas = atlas_dcm.pixel_array
+atlas = atlas_dcm.pixel_array
+atlas_shape = atlas.shape
 
-# thalamus_atlas = atlas[atlas >= 121] & atlas[atlas <= 150]
+## Padd atlas to match reference image dimensions (12 black slices per axis, 6 each side)
+
+# Calcular el número de voxels negros a añadir en cada dimensión
+pad_widths = (
+    ((referenced_shape[0] - atlas_shape[0]) // 2, (referenced_shape[0] - atlas_shape[0] + 1) // 2), # para la primera dimensión
+    ((referenced_shape[1] - atlas_shape[1]) // 2, (referenced_shape[1] - atlas_shape[1] + 1) // 2), # para la segunda dimensión
+    ((referenced_shape[2] - atlas_shape[2]) // 2, (referenced_shape[2] - atlas_shape[2] + 1) // 2)  # para la tercera dimensión
+)
+
+# Añadir los voxels negros usando np.pad
+atlas = np.pad(atlas, pad_widths, mode='constant', constant_values=0)
+atlas = np.flip(atlas, axis=0)
+print(atlas.shape, referenced_img.shape)
+
+thalamus_atlas = np.zeros_like(atlas)
+thalamus_atlas[(atlas >= 121) & (atlas <= 150)] = 1
+# thalamus_atlas = resize(thalamus_atlas, referenced_img.shape, order=0)
+
+
+from overlayed import get_overlay_animation
+
+get_overlay_animation(image=referenced_img, mask=thalamus_atlas, plane="axial", show=True)
+
+# for img, mask in zip(referenced_img, thalamus_atlas):
+#     img = matplotlib.colormaps["bone"](img)
+#     print(np.unique(mask))
+#     if len(np.unique(mask)) != 1:
+
+#         mask = matplotlib.colormaps["tab10"](mask)
+    
+#         overlayed = alpha_fusion(img, mask)
+#         plt.figure(figsize=(10, 10))
+#         plt.imshow(overlayed)
+#         plt.axis('off')
+#         plt.show()

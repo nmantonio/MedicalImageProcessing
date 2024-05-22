@@ -8,7 +8,7 @@ from scipy.ndimage import rotate
 
 from utils import *
 
-root = r"C:\Users\tonin\Desktop\Master\PIM\MedicalImageProcessing"
+root = r"/home/slimbook/Escritorio/Antonio/MedicalImageProcessing"
 med_folder = os.path.join(root, "HCC-TACE-Seg/HCC_009/02-15-1998-NA-PP CAPLIVER PROTO.-10975/103.000000-LIVER 3 PHASE CAP-83135")
 segmentation_path = os.path.join(root, "HCC-TACE-Seg/HCC_009/02-15-1998-NA-PP CAPLIVER PROTO.-10975/300.000000-Segmentation-91221/1-1.dcm")
 
@@ -27,7 +27,7 @@ print("Only one acquisition value!" if len(acquisition_numers) == 1 else "More t
 sorted_list = sorted(unsorted_image_info, key=lambda x: x["pos"], reverse=True)
 img = np.array([el["img"] for el in sorted_list])
 # Windowing
-img = np.where(np.logical_and(-120<=img, img<=1200), img, 0)
+img = np.where(np.logical_and(0<=img, img<=500), img, 0)
 # Normalization (minmax)
 img = (img - (np.min(img))) / (np.max(img) - (np.min(img)))
 
@@ -69,7 +69,7 @@ seg_projections = create_projections(segmentations_img, n=n, mode="seg")
 colormapped_projections = [apply_colormap(projection, "bone") for projection in projections]
 colormapped_seg_projections = [apply_colormap(seg_projection, "tab10") for seg_projection in seg_projections]
 
-fused_projections = [alpha_fusion(proj, seg_proj) for proj, seg_proj in zip(colormapped_projections, colormapped_seg_projections)]
+fused_projections = [alpha_fusion(proj, seg_proj, noncm_seg_proj) for proj, seg_proj, noncm_seg_proj in zip(colormapped_projections, colormapped_seg_projections, seg_projections)]
 
 # Save and visualize animation
 img_min = np.amin(img)

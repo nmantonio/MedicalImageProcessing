@@ -3,7 +3,8 @@ import numpy as np
 from scipy.ndimage import rotate, shift
 from scipy.optimize import minimize
 import matplotlib
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, animation
+import os
 
 def apply_colormap(img, colormap):
     return matplotlib.colormaps[colormap](img)
@@ -12,7 +13,6 @@ def alpha_fusion(image, seg, non_colormapped_seg=False, ALPHA=0.25):
     fused_image = image*ALPHA + seg*(1 - ALPHA)
     # if non_colormapped_seg:
     fused_image[non_colormapped_seg == 0] = image[non_colormapped_seg == 0]
-
     return fused_image
 
 def MIP_sagittal_plane(img: np.ndarray) -> np.ndarray:
@@ -56,6 +56,31 @@ def create_projections(img, n, mode):
         projections.append(projection)  # Save for later animation
     return projections
 
+def create_rotation(img, n, name, root, results_path, aspect_ratio=1, show=False, cmap=False):
+    projections = create_projections(img, n=n, mode="img")
+
+    img_min = np.amin(img)
+    img_max = np.amax(img)
+
+    fig, ax = plt.subplots()
+    plt.axis('off')
+
+    if cmap: 
+        animation_data = [
+            [plt.imshow(proj, animated=True, vmin=img_min, vmax=img_max, cmap=cmap, aspect=aspect_ratio)]
+            for proj in projections
+        ]
+    else: 
+        animation_data = [
+            [plt.imshow(proj, animated=True, vmin=img_min, vmax=img_max, aspect=aspect_ratio)]
+            for proj in projections
+        ]
+    anim = animation.ArtistAnimation(fig, animation_data,
+                                interval=0.390625*n, blit=True)
+    anim.save(os.path.join(results_path, f"{name}_rotation.gif"))
+    if show:
+        plt.show() 
+
 def save_slice(image, axis, filename, pixel_len_mm, cmap='bone', legend_labels=False):
     """
     Guarda una slice de una imagen 3D como un archivo PNG.
@@ -66,6 +91,7 @@ def save_slice(image, axis, filename, pixel_len_mm, cmap='bone', legend_labels=F
     """
     if axis == 'axial':
         slice_data = image[image.shape[0] // 2, :, :]
+        slice_data = image[300, :, :]
         aspect_ratio = pixel_len_mm[1] / pixel_len_mm[2]
     elif axis == 'coronal':
         slice_data = image[:, image.shape[1] // 2, :]
@@ -196,8 +222,8 @@ def coregister_images(ref_image, input_image, initial_parameters=False):
     """ Coregister two sets of landmarks using a rigid transformation. """
     if not initial_parameters:
         initial_parameters = (
-            -20, 0, 0, # t1, t2, t3 (translation)
-            160, 0, 0 # angle_0, angle_1, angle_2 (rotations)
+            20, 0, 0, # t1, t2, t3 (translation)
+            0, 0, 0 # angle_0, angle_1, angle_2 (rotations)
         )
 
     def function_to_minimize(parameters):
@@ -211,6 +237,5 @@ def coregister_images(ref_image, input_image, initial_parameters=False):
         function_to_minimize,
         x0=initial_parameters,
         method="Powell"
-        # options={'maxiter': 1000, 'disp': True}
         )
     return result

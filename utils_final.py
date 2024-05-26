@@ -2,7 +2,91 @@ import numpy as np
 
 from scipy.ndimage import rotate, shift
 from scipy.optimize import minimize
+import matplotlib
+from matplotlib import pyplot as plt
 
+def apply_colormap(img, colormap):
+    return matplotlib.colormaps[colormap](img)
+
+def alpha_fusion(image, seg, non_colormapped_seg=False, ALPHA=0.25):
+    fused_image = image*ALPHA + seg*(1 - ALPHA)
+    # if non_colormapped_seg:
+    fused_image[non_colormapped_seg == 0] = image[non_colormapped_seg == 0]
+
+    return fused_image
+
+def MIP_sagittal_plane(img: np.ndarray) -> np.ndarray:
+    """ Compute the maximum intensity projection on the sagittal orientation. """
+    return np.max(img, axis=2)
+
+def MIP_coronal_plane(img: np.ndarray) -> np.ndarray:
+    """ Compute the maximum intensity projection on the sagittal orientation. """
+    return np.max(img, axis=1)
+
+def rotate_on_axial_plane(img: np.ndarray, angle_in_degrees: float, mode: str) -> np.ndarray:
+    """ Rotate the image on the axial plane. """
+    if mode == "img":
+        return rotate(img, angle=angle_in_degrees, axes=[1, 2], reshape=False, mode="constant", order=3)
+
+    elif (mode == "realistic") or (mode == "nonrealistic"):
+        return rotate(img, angle=angle_in_degrees, axes=[1, 2], reshape=False, mode="constant", order=0)
+
+def get_projection(img: np.ndarray) -> np.ndarray:
+    """ Create the point-of-view-dependent representation of the segmentation projection """
+    non_zero_indices = np.nonzero(img)
+    projection = np.zeros((img.shape[0], img.shape[2]), dtype=np.uint8)
+    projection[non_zero_indices[0], non_zero_indices[1]] = img[non_zero_indices]
+    return projection
+
+def create_projections(img, n, mode):
+    """
+    Given an image and a number of desired projections, 
+    compute the rotation and needed projections to obtain the animated image
+    """
+    projections = []
+    for idx, alpha in enumerate(np.linspace(0, 360*(n-1)/n, num=n)):
+        print(f"{mode}: {idx}")
+        rotated_img = rotate_on_axial_plane(img, alpha, mode=mode)
+        if mode == "img" or mode == "nonrealistic":
+            projection = MIP_sagittal_plane(rotated_img)
+            # projection = MIP_coronal_plane(rotated_img)
+        elif mode == "realistic":
+            projection = get_projection(rotated_img)
+
+        projections.append(projection)  # Save for later animation
+    return projections
+
+def save_slice(image, axis, filename, pixel_len_mm, cmap='bone', legend_labels=False):
+    """
+    Guarda una slice de una imagen 3D como un archivo PNG.
+    
+    :param image: numpy.ndarray, la imagen 3D.
+    :param axis: str, el eje sobre el cual tomar la slice.
+    :param filename: str, el nombre del archivo para guardar la slice.
+    """
+    if axis == 'axial':
+        slice_data = image[image.shape[0] // 2, :, :]
+        aspect_ratio = pixel_len_mm[1] / pixel_len_mm[2]
+    elif axis == 'coronal':
+        slice_data = image[:, image.shape[1] // 2, :]
+        aspect_ratio = pixel_len_mm[0] / pixel_len_mm[2]
+    elif axis == 'sagittal':
+        slice_data = image[:, :, image.shape[2] // 2]
+        aspect_ratio = pixel_len_mm[0] / pixel_len_mm[1]
+    else:
+        raise ValueError("El eje debe ser 'axial', 'coronal' o 'sagittal'")
+    fig, ax = plt.subplots()
+    if legend_labels: 
+        # Plotting legend
+        legend_colors = [matplotlib.colormaps['tab10'](seg_idx) for seg_idx in range(1, len(legend_labels)+1)]
+        legend_handles = [matplotlib.patches.Patch(color=color, label=label) 
+                        for label, color in zip(legend_labels, legend_colors)]
+        ax.legend(handles=legend_handles, labels=legend_labels, loc='upper right', fontsize='x-small')
+        
+    plt.imshow(slice_data, cmap=cmap, aspect=aspect_ratio)
+    plt.axis('off')
+    plt.savefig(filename, bbox_inches='tight', pad_inches=0)
+    plt.close() 
 
 def expand_images(img1, img2):
     # Get the shapes of both images
@@ -72,7 +156,6 @@ def expand_images_unilateral(img1, img2, axis):
     
     return expanded_img1, expanded_img2
 
-
 def minmax_normalize(img):
     return (img - np.min(img)) / (np.max(img) - np.min(img))
 
@@ -82,18 +165,18 @@ def mse_3d_array(arr1, arr2):
     mse = np.mean(squared_diff)
     return mse
 
-def translate(image, translation):
+def translate(image, translation, **kwargs):
     t1, t2, t3 = translation
-    return shift(image, shift=(t1, t2, t3))
+    return shift(image, shift=(t1, t2, t3), **kwargs)
 
-def rotate_img(image, angle, axis):
-    return rotate(image, angle, axes=axis, reshape=False)
+def rotate_img(image, angle, axis ,**kwargs):
+    return rotate(image, angle, axes=axis, reshape=False, **kwargs)
 
-def three_axis_rotation(image, angles):
+def three_axis_rotation(image, angles, **kwargs):
     angle_0, angle_1, angle_2 = angles
-    image = rotate_img(image, angle_0, axis=(1, 2))
-    image = rotate_img(image, angle_1, axis=(0, 2))
-    image = rotate_img(image, angle_2, axis=(0, 1))
+    image = rotate_img(image, angle_0, axis=(1, 2), **kwargs)
+    image = rotate_img(image, angle_1, axis=(0, 2), **kwargs)
+    image = rotate_img(image, angle_2, axis=(0, 1), **kwargs)
     return image
     
 def translation_then_axialrotation(image, parameters: tuple[float, ...]):
@@ -103,10 +186,10 @@ def translation_then_axialrotation(image, parameters: tuple[float, ...]):
     axial_rotated = three_axis_rotation(translated, angles=(angle_0, angle_1, angle_2))
     return axial_rotated
 
-def inverse_transformation(img, params):
+def inverse_transformation(img, params, **kwargs):
     t1, t2, t3, angle0, angle1, angle2 = params
-    rotated = three_axis_rotation(img, angles=(-angle0, -angle1, -angle2))
-    translated = translate(rotated, translation=(-t1, -t2, -t3))
+    rotated = three_axis_rotation(img, angles=(-angle0, -angle1, -angle2), **kwargs)
+    translated = translate(rotated, translation=(-t1, -t2, -t3), **kwargs)
     return translated
 
 def coregister_images(ref_image, input_image, initial_parameters=False):
@@ -118,7 +201,8 @@ def coregister_images(ref_image, input_image, initial_parameters=False):
         )
 
     def function_to_minimize(parameters):
-        """ Transform input landmarks, then compare with reference landmarks."""        
+        """ Transform input landmarks, then compare with reference landmarks."""
+        print(parameters)        
         moved_image = translation_then_axialrotation(input_image, parameters=parameters)
         
         return mse_3d_array(ref_image, moved_image)
@@ -126,8 +210,7 @@ def coregister_images(ref_image, input_image, initial_parameters=False):
     result = minimize(
         function_to_minimize,
         x0=initial_parameters,
-        # method="Powell"
-        method='BFGS',
-        options={'maxiter': 1000, 'disp': True}
+        method="Powell"
+        # options={'maxiter': 1000, 'disp': True}
         )
     return result

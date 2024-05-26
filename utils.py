@@ -4,6 +4,7 @@ import os
 from matplotlib import pyplot as plt, animation
 
 
+
 from scipy.ndimage import rotate
 
 def MIP_sagittal_plane(img: np.ndarray) -> np.ndarray:
@@ -47,15 +48,15 @@ def  create_projections(img, n, mode):
         if mode == "img":
             projection = MIP_sagittal_plane(rotated_img)
         elif mode == "seg":
-            print(np.unique(rotated_img))
             projection = get_projection(rotated_img)
         else: 
             raise ValueError("mode must be one of 'img' or 'seg'!")
         projections.append(projection)  # Save for later animation
     return projections
 
-def alpha_fusion(image, seg, non_colormapped_seg, ALPHA=0.8):
+def alpha_fusion(image, seg, non_colormapped_seg=False, ALPHA=0.25):
     fused_image = image*ALPHA + seg*(1 - ALPHA)
+    # if non_colormapped_seg:
     fused_image[non_colormapped_seg == 0] = image[non_colormapped_seg == 0]
 
     return fused_image
@@ -63,7 +64,7 @@ def alpha_fusion(image, seg, non_colormapped_seg, ALPHA=0.8):
 def apply_colormap(img, colormap):
     return matplotlib.colormaps[colormap](img)
 
-def create_rotation(img, n, aspect_ratio, name, root, show=True):
+def create_rotation(img, n, name, root, aspect_ratio=1, show=False, cmap=False):
     projections = create_projections(img, n=n, mode="img")
 
     img_min = np.amin(img)
@@ -72,10 +73,16 @@ def create_rotation(img, n, aspect_ratio, name, root, show=True):
     fig, ax = plt.subplots()
     plt.axis('off')
 
-    animation_data = [
-        [plt.imshow(proj, animated=True, vmin=img_min, vmax=img_max, aspect=aspect_ratio)]
-        for proj in projections
-    ]
+    if cmap: 
+        animation_data = [
+            [plt.imshow(proj, animated=True, vmin=img_min, vmax=img_max, cmap=cmap, aspect=aspect_ratio)]
+            for proj in projections
+        ]
+    else: 
+        animation_data = [
+            [plt.imshow(proj, animated=True, vmin=img_min, vmax=img_max, aspect=aspect_ratio)]
+            for proj in projections
+        ]
     anim = animation.ArtistAnimation(fig, animation_data,
                                 interval=0.390625*n, blit=True)
     anim.save(os.path.join(root, "results", "2", f"{name}_rotation.gif"))

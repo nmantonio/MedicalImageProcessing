@@ -8,7 +8,7 @@ from scipy.ndimage import rotate
 
 from utils import *
 
-root = r"/home/slimbook/Escritorio/Antonio/MedicalImageProcessing"
+root = r"C:\Users\tonin\Desktop\Master\PIM\MedicalImageProcessing"
 med_folder = os.path.join(root, "HCC-TACE-Seg/HCC_009/02-15-1998-NA-PP CAPLIVER PROTO.-10975/103.000000-LIVER 3 PHASE CAP-83135")
 segmentation_path = os.path.join(root, "HCC-TACE-Seg/HCC_009/02-15-1998-NA-PP CAPLIVER PROTO.-10975/300.000000-Segmentation-91221/1-1.dcm")
 
@@ -27,7 +27,9 @@ print("Only one acquisition value!" if len(acquisition_numers) == 1 else "More t
 sorted_list = sorted(unsorted_image_info, key=lambda x: x["pos"], reverse=True)
 img = np.array([el["img"] for el in sorted_list])
 # Windowing
-img = np.where(np.logical_and(0<=img, img<=500), img, 0)
+img = np.where(np.logical_and(-100<=img, img<=800), img, 0)
+# img = np.where(img <= -100, np.min(img), img)
+# img = np.where(img >= 1000, np.min(img), img)
 # Normalization (minmax)
 img = (img - (np.min(img))) / (np.max(img) - (np.min(img)))
 
@@ -62,7 +64,7 @@ segmentations_img = np.zeros_like(img, dtype=np.uint8)
 for seg_idx in segmentations.keys():
     segmentations_img[segmentations[seg_idx]["SegmentationSortedArray"]!= 0] = int(seg_idx)
 
-n = 256
+n = 16
 projections = create_projections(img, n=n, mode="img")
 seg_projections = create_projections(segmentations_img, n=n, mode="seg")
 
@@ -91,7 +93,7 @@ animation_data = [
     for img in fused_projections
 ]
 anim = animation.ArtistAnimation(fig, animation_data,
-                            interval=25, blit=True)
+                            interval=0.390625*n, blit=True)
 anim.save(os.path.join(root, "results", "1", "realistic_rotation.gif"))
 # plt.show() 
 
